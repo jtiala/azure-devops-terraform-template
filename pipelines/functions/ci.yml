@@ -1,0 +1,36 @@
+trigger: none
+pr:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - functions/
+      - pipelines/functions/
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: Build
+    steps:
+      - template: ../templates/validate-variables.yml
+      - task: UsePythonVersion@0
+        displayName: Set Python version
+        inputs:
+          versionSpec: 3.7
+          architecture: x64
+      - script: pip install --target="./.python_packages/lib/site-packages" -r ./requirements.txt
+        workingDirectory: $(System.DefaultWorkingDirectory)/functions
+        displayName: Install dependencies
+      - task: ArchiveFiles@2
+        displayName: Create build zip
+        inputs:
+          rootFolderOrFile: $(System.DefaultWorkingDirectory)/functions
+          includeRootFolder: false
+          archiveFile: $(System.DefaultWorkingDirectory)/build-$(Build.BuildId).zip
+      - task: PublishBuildArtifacts@1
+        displayName: Publish build
+        inputs:
+          PathtoPublish: $(System.DefaultWorkingDirectory)/build-$(Build.BuildId).zip
+          artifactName: "build"

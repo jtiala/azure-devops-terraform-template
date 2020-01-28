@@ -1,0 +1,53 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - api/
+      - pipelines/api/
+
+variables:
+  IMAGE_NAME: $(PREFIX)-api
+  IMAGE_TAG: latest
+  CONTAINER_REGISTRY: $(PREFIX)$(ENV)cr
+  CONTAINER_REGISTRY_SERVER: $(CONTAINER_REGISTRY).azurecr.io
+  RESOURCE_GROUP: $(PREFIX)-$(ENV)-main-rg
+  APP_SERVICE_PLAN: $(PREFIX)-$(ENV)-api-asp
+  APP_NAME: $(PREFIX)-$(ENV)-api-app
+  DATABASE_ACCOUNT: $(PREFIX)-$(ENV)-dba
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: Build
+    steps:
+      - template: ../templates/validate-variables.yml
+      - script: npm ci
+        workingDirectory: $(System.DefaultWorkingDirectory)/api
+        displayName: Install dependencies
+      - script: docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+        workingDirectory: $(System.DefaultWorkingDirectory)/api
+        displayName: Build Docker image
+  - deployment: Deploy
+    dependsOn: Build
+    environment: $(PREFIX)-$(ENV)-api
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - checkout: self
+            - template: ../templates/pipeline-secrets.yml
+            - script: |
+                cd $(System.DefaultWorkingDirectory)/api
+                az login --service-principal -u $(SP-ID) -p $(SP-PASSWORD) --tenant $(TENANT-ID)
+                az account set --subscription $(SUBSCRIPTION-ID)
+                az acr login --name $(CONTAINER_REGISTRY)
+                docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+                docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CONTAINER_REGISTRY_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
+                docker push $(CONTAINER_REGISTRY_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
+                connectionString=$(az cosmosdb list-connection-strings -n $(DATABASE_ACCOUNT) -g $(RESOURCE_GROUP) --query connectionStrings[0].connectionString --output tsv)
+                az webapp create -g $(RESOURCE_GROUP) -p $(APP_SERVICE_PLAN) -n $(APP_NAME) -i $(CONTAINER_REGISTRY_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
+                az webapp config appsettings set -g $(RESOURCE_GROUP) -n $(APP_NAME) --settings "DB_CONNECTION_STRING=$connectionString" "DB_NAME=$(PREFIX)"
+              displayName: Deploy to Azure

@@ -1,0 +1,28 @@
+version: "3"
+services:
+  api:
+    build:
+      context: .
+      args:
+        NODE_ENV: development
+    environment:
+      DB_CONNECTION_STRING: mongodb://api:api@db:27017/
+      DB_NAME: api
+    command: npm run start:dev
+    volumes:
+      - .:/api
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    links:
+      - db
+  db:
+    image: mongo:4.2
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: api
+    volumes:
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro

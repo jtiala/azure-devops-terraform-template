@@ -1,0 +1,56 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - functions/
+      - pipelines/functions/
+
+variables:
+  RESOURCE_GROUP: $(PREFIX)-$(ENV)-func-rg
+  APP_NAME: $(PREFIX)-$(ENV)-func-app
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: Build
+    steps:
+      - template: ../templates/validate-variables.yml
+      - task: UsePythonVersion@0
+        displayName: Set Python version
+        inputs:
+          versionSpec: 3.7
+          architecture: x64
+      - script: pip install --target="./.python_packages/lib/site-packages" -r ./requirements.txt
+        workingDirectory: $(System.DefaultWorkingDirectory)/functions
+        displayName: Install dependencies
+      - task: ArchiveFiles@2
+        displayName: Create build zip
+        inputs:
+          rootFolderOrFile: $(System.DefaultWorkingDirectory)/functions
+          includeRootFolder: false
+          archiveFile: $(System.DefaultWorkingDirectory)/build-$(Build.BuildId).zip
+      - task: PublishBuildArtifacts@1
+        displayName: Publish build
+        inputs:
+          PathtoPublish: $(System.DefaultWorkingDirectory)/build-$(Build.BuildId).zip
+          artifactName: "build"
+  - deployment: Deploy
+    dependsOn: Build
+    environment: $(PREFIX)-$(ENV)-functions
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - template: ../templates/pipeline-secrets.yml
+            - download: current
+              artifact: build
+              displayName: Download build
+            - script: |
+                cd $(System.DefaultWorkingDirectory)/functions
+                az login --service-principal -u $(SP-ID) -p $(SP-PASSWORD) --tenant $(TENANT-ID)
+                az account set --subscription $(SUBSCRIPTION-ID)
+                az functionapp deployment source config-zip -g $(RESOURCE_GROUP) -n $(APP_NAME) --src $(Pipeline.Workspace)/build/build-$(Build.BuildId).zip
+              displayName: Deploy to Azure

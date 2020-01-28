@@ -1,0 +1,46 @@
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - infra/
+      - pipelines/infra/
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: Build
+    steps:
+      - template: ../templates/validate-variables.yml
+      - template: ../templates/pipeline-secrets.yml
+      - script: |
+          az login --service-principal -u $(SP-ID) -p $(SP-PASSWORD) --tenant $(TENANT-ID)
+          az account set --subscription $(SUBSCRIPTION-ID)
+          cd $(System.DefaultWorkingDirectory)/infra
+          terraform init -backend-config="storage_account_name=$(PREFIX)$(ENV)tfsa" -backend-config="container_name=terraform-state" -backend-config="access_key=$(SA-ACCOUNT-KEY)" -backend-config="key=terraform.tfstate"
+          terraform plan -var-file=./tf-vars/$(ENV).tfvars -var="client_id=$(SP-ID)" -var="client_secret=$(SP-PASSWORD)" -var="tenant_id=$(TENANT-ID)" -var="subscription_id=$(SUBSCRIPTION-ID)" -out="out.plan"
+        displayName: Run Terraform Plan
+      - publish: $(System.DefaultWorkingDirectory)/infra/out.plan
+        artifact: terraform
+        displayName: Publish Terraform plan
+  - deployment: Deploy
+    dependsOn: Build
+    environment: $(PREFIX)-$(ENV)-infra
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - checkout: self
+            - template: ../templates/pipeline-secrets.yml
+            - download: current
+              artifact: terraform
+              displayName: Download Terraform plan
+            - script: |
+                cd $(System.DefaultWorkingDirectory)/infra
+                az login --service-principal -u $(SP-ID) -p $(SP-PASSWORD) --tenant $(TENANT-ID)
+                az account set --subscription $(SUBSCRIPTION-ID)
+                terraform init -backend-config="storage_account_name=$(PREFIX)$(ENV)tfsa" -backend-config="container_name=terraform-state" -backend-config="access_key=$(SA-ACCOUNT-KEY)" -backend-config="key=terraform.tfstate"
+                terraform apply $(Pipeline.Workspace)/terraform/out.plan
+              displayName: Run Terraform Apply

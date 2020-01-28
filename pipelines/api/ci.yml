@@ -1,0 +1,27 @@
+trigger: none
+pr:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - api/
+      - pipelines/api/
+
+variables:
+  IMAGE_NAME: $(PREFIX)-api
+  IMAGE_TAG: latest
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: Build
+    steps:
+      - template: ../templates/validate-variables.yml
+      - script: npm ci
+        workingDirectory: $(System.DefaultWorkingDirectory)/api
+        displayName: Install dependencies
+      - script: docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+        workingDirectory: $(System.DefaultWorkingDirectory)/api
+        displayName: Build Docker image

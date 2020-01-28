@@ -1,0 +1,7 @@
+steps:
+  - script: |
+      [ -z $(PREFIX) ] && echo "Variable PREFIX missing" && exit 1
+      [ -z $(ENV) ] && echo "Variable ENV missing" && exit 1
+      echo "PREFIX is" $(PREFIX)
+      echo "ENV is" $(ENV)
+    displayName: Validate variables

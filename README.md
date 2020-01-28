@@ -12,18 +12,18 @@ The environment script is heavily inspired by [Maninderjit Bindra](https://twitt
 
    This will create the needed service principals, an Azure DevOps service connection and the following resource groups and resources:
 
-   - **[PREFIX]-[ENV]-pl-rg**
-     - _[PREFIX]-[ENV]-pl-kv_: Key vault for pipeline secrets
-   - **[PREFIX]-[ENV]-tf-rg**
-     - _[PREFIX][ENV]tfsa_: Storage account for Terraform
+   - **[PREFIX]-[ENV]-pl-rg**
+     - _[PREFIX]-[ENV]-pl-kv_: Key vault for pipeline secrets
+   - **[PREFIX]-[ENV]-tf-rg**
+     - _[PREFIX][env]tfsa_: Storage account for Terraform
        - _terraform-state_: Blob container for Terraform state
-   - **[PREFIX]-[ENV]-main-rg**
+   - **[PREFIX]-[ENV]-main-rg**
      - Most of the Terraform provisioned Azure resources
-   - **[PREFIX]-[ENV]-func-rg** - Terraform provisioned Azure Functions related resources. This is needed, because based on a [current limitation](https://docs.microsoft.com/en-us/azure/app-service/containers/app-service-linux-intro#limitations) on Azure, both Linux and Functions apps cannot live in the same resource group.
+   - **[PREFIX]-[ENV]-func-rg** - Terraform provisioned Azure Functions related resources. This is needed, because based on a [current limitation](https://docs.microsoft.com/en-us/azure/app-service/containers/app-service-linux-intro#limitations) on Azure, both Linux and Functions apps cannot live in the same resource group.
 
 2. In Azure DevOps, go to `Project settings Service connections` (or click the link from the script output), select your new connection, click `Edit` and `Verify connection`. Click OK.
 
-3. Create a `tfvars` file for the new environment at `infra/tf-vars/[ENV].tfvars`. Use the same environment identifier that you used with the script.
+3. Create a `tfvars` file for the new environment at `infra/tf-vars/[ENV].tfvars`. Use the same environment identifier that you used with the script.
 
 ### Removing an environment
 
@@ -34,7 +34,7 @@ To remove an environment created, run `infra/scripts/environment.sh down` (use `
 ### Creating a pipeline
 
 1. In Azure DevOps, create a new pipeline using existing YAML file. Available pipeline templates are described below.
-2. Add an environment variables `PREFIX` and `ENV` with the same values that you used with the environment script.
+2. Add an environment variables `PREFIX` and `ENV` with the same values that you used with the environment script.
 3. Run the pipeline.
 4. Rename your pipeline with environment specific name so they are easier to recognize.
 5. You may want to add a manual approval check before deploying to some environments. Approval checks can be created in Azure DevOps at `Pipelines > Environments > [PREFIX]-[ENV]-infra > Approvals and checks`.
@@ -73,16 +73,18 @@ Builds a Docker image from the API source code. The pipeline will be triggered f
 
 The included Terraform configuration creates the following Azure resources:
 
-- Storage Account
+- **storage.tf**
+  - Storage account
   - Storage container for logs
   - SAS token
-- CosmosDB Account
+- **db.tf**
+  - CosmosDB account
   - MongoDB database
-- API
-  - Linux app service plan
+- **api.tf**
   - Container registry
+  - Linux app service plan
   - Dockerized Node.js app with database connection
-- Azure Functions
+- **functions.tf**
   - Linux functions app service plan
   - Application insights
   - Python functions app with database connection

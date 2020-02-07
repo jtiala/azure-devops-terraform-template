@@ -62,8 +62,3 @@ variable "func_asp_sku_size" {
   type = string
   description = "Azure App Service Plan size for Functions app"
 }
-
-variable "func_app_always_on" {
-  type = string
-  description = "always_on setting for Functions app"
-}

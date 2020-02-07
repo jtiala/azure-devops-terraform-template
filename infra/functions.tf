@@ -53,7 +53,6 @@ resource "azurerm_function_app" "func-app" {
   }
 
   site_config {
-    always_on = var.func_app_always_on
     linux_fx_version = "python|3.7"
   }
 

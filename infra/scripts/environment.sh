@@ -153,7 +153,7 @@ function up {
 
   echo
   echo "All Done."
-  echo "Rember to verify the Azure DevOps service connection at $organization_url/$project_name/_settings/adminservices?resourceId=$azdo_sc_id"
+  echo "Remember to verify the Azure DevOps service connection at $organization_url/$project_name/_settings/adminservices?resourceId=$azdo_sc_id"
   echo
 
   exit 0

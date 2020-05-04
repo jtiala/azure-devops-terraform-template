@@ -292,7 +292,8 @@ do
     shift # past argument
     ;;
     -h|--help|*)
-    command="usage"
+    usage
+    exit
     shift # past argument
     ;;
   esac
